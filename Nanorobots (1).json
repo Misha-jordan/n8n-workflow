@@ -1,0 +1,572 @@
+{
+  "name": "Nanorobots",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=<AgentInstructions>\n  <title>Nanorobot Control via Webhook</title>\n  \n  <role>\n    Nanorobot control system that receives commands from a web-based UI (HTML page), processes them through an AI agent, and sends control signals to nanorobots via HTTP API.\n  </role> \n  \n  <context>\n    User enters a command in the HTML interface (e.g., \"scan area_5\"). The AI agent must recognize the command, determine whether nanorobot action is required, and generate a structured JSON request for the nanorobot API. After execution, nanorobots return confirmation via callback. The final result is sent back to the user’s browser.\n  </context>\n  \n  <task>\n    <step>1. Recognize command from user input in ANY language (Russian, English, or mixed)</step>\n    <step>2. Determine if nanorobot action is required</step>\n    <step>3. Generate HTTP request with action, target, and parameters\n         Example: { \"action\": \"scan\", \"target\": \"area_5\", \"params\": { \"resolution\": \"high\" } }</step>\n    <step>4. Extract task_id from API response for status tracking\n         (if not provided, generate a temporary ID)</step>\n    <step>5. Return final response to user IN RUSSIAN LANGUAGE (for display in browser)</step>\n  </task>\n  \n  <input_data>\n    <variable>chatInput: raw user command in any language (e.g., \"сканируй зону 3\", \"scan area_5\", \"move to x=10\")</variable>\n    <variable>sessionId: unique session ID for memory context</variable>\n  </input_data>\n  \n  <response_format>\n    <format>Return ONLY valid JSON (no extra text, no markdown, no explanations)</format>\n    <field>action: normalized English keyword (e.g., \"scan\", \"move\", \"capture\", \"set_temperature\")</field>\n    <field>target: string (e.g., \"area_5\", \"x=10,y=20\", \"camera_1\")</field>\n    <field>params: object (e.g., {\"resolution\": \"high\", \"duration\": 10})</field>\n    <field>task_id: string (use from API response, or generate: \"tmp-\" + Date.now())</field>\n    <field>response_text: user-facing message IN RUSSIAN LANGUAGE (e.g., \"✅ Сканирование завершено\")</field>\n  </response_format>\n  \n  <requirements>\n    <requirement>Primary prompt language: English (for AI internal processing)</requirement>\n    <requirement>User-facing responses MUST be in Russian language</requirement>\n    <requirement>Include error handling (e.g., unknown command → friendly Russian error)</requirement>\n    <requirement>Follow best practices for asynchronous request processing (use task_id + polling)</requirement>\n    <requirement>Support multilingual input: understand Russian, English, and mixed-language commands equally well</requirement>\n  </requirements>\n  \n  <examples>\n    <good_example>\n      Input (RU): \"сканируй зону 5 с высоким разрешением\"\n      Output:\n      {\n        \"action\": \"scan\",\n        \"target\": \"area_5\",\n        \"params\": { \"resolution\": \"high\" },\n        \"task_id\": \"tmp-1712345678901\",\n        \"response_text\": \"🔍 Запущено сканирование зоны 5 с высоким разрешением. Ожидайте подтверждения...\"\n      }\n    </good_example>\n    \n    <good_example>\n      Input (EN): \"capture photo with camera_2\"\n      Output:\n      {\n        \"action\": \"capture\",\n        \"target\": \"camera_2\",\n        \"params\": { \"type\": \"photo\" },\n        \"task_id\": \"tmp-1712345678902\",\n        \"response_text\": \"📸 Фотография с камеры camera_2 сделана успешно.\"\n      }\n    </good_example>\n    \n    <good_example>\n      Input (MIXED): \"сканируй area_7 high resolution\"\n      Output:\n      {\n        \"action\": \"scan\",\n        \"target\": \"area_7\",\n        \"params\": { \"resolution\": \"high\" },\n        \"task_id\": \"tmp-1712345678903\",\n        \"response_text\": \"🔍 Сканирование области area_7 с высоким разрешением запущено.\"\n      }\n    </good_example>\n    \n    <good_example>\n      Input (RU): \"перемести в координаты x=15 y=25\"\n      Output:\n      {\n        \"action\": \"move\",\n        \"target\": \"x=15,y=25\",\n        \"params\": {},\n        \"task_id\": \"tmp-1712345678904\",\n        \"response_text\": \"🧭 Перемещение в координаты x=15, y=25 начато.\"\n      }\n    </good_example>\n    \n    <error_example>\n      Input: \"сделай что-нибудь\"\n      Output:\n      {\n        \"action\": \"error\",\n        \"target\": \"unknown\",\n        \"params\": {},\n        \"task_id\": \"tmp-1712345678905\",\n        \"response_text\": \"❌ Не удалось распознать команду. Доступные команды: сканировать, переместить, сфотографировать, установить температуру, включить камеру\"\n      }\n    </error_example>\n  </examples>\n  \n  <checklist>\n    <item>All fields in response_format are present?</item>\n    <item>response_text is in Russian?</item>\n    <item>No extra text outside JSON?</item>\n    <item>task_id is always present (even if temporary)?</item>\n    <item>Commands recognized in Russian, English, and mixed input?</item>\n  </checklist>\n  \n  <style>\n    Technically precise, no fluff. Strict JSON output only.\n  </style>\n  \n  <prohibited>\n    <item>Inventing non-existent nanorobot functions</item>\n    <item>Using English in response_text</item>\n    <item>Returning Markdown, lists, or explanations</item>\n    <item>Failing to normalize multilingual input to standard action keywords</item>\n  </prohibited>\n  \n  <critical_instruction>\n    <![CDATA[\n    IMPORTANT: While this prompt is written in English for the AI agent's internal processing,\n    ALL values of \"response_text\" visible to the end user in the browser MUST be in Russian language only.\n    \n    The AI MUST understand commands in Russian, English, and mixed languages, but ALWAYS respond in Russian.\n    \n    Examples:\n      ✅ CORRECT: {\"response_text\": \"Задача выполнена успешно\"}\n      ❌ WRONG:  {\"response_text\": \"Task completed successfully\"}\n      \n      ✅ CORRECT Input: \"включи камеру\" → Output: {\"action\":\"set_camera\", \"response_text\":\"📹 Камера включена\"}\n      ✅ CORRECT Input: \"scan area_5\" → Output: {\"action\":\"scan\", \"response_text\":\"🔍 Сканирование запущено\"}\n    ]]>\n  </critical_instruction>\n</AgentInstructions>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -192,
+        -96
+      ],
+      "id": "359f6d68-e02d-40fe-a8d6-8a91306632e5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем raw output от AI Agent1\nconst aiOutput = $json.output || $json.response_text || '';\n\n// 1. Попробуем извлечь структуру по шаблонам (если AI вернул текст с ключами)\nlet status = 'unknown';\nlet taskId = $json.task_id || $json.sessionId || 'tmp-' + Date.now();\nlet message = aiOutput.trim().substring(0, 300);\n\n// Извлекаем status по ключевым словам\nif (aiOutput.toLowerCase().includes('completed') || aiOutput.toLowerCase().includes('успешно')) {\n  status = 'completed';\n} else if (aiOutput.toLowerCase().includes('running') || aiOutput.toLowerCase().includes('выполняется')) {\n  status = 'running';\n} else if (aiOutput.toLowerCase().includes('failed') || aiOutput.toLowerCase().includes('ошибка')) {\n  status = 'failed';\n} else if (aiOutput.toLowerCase().includes('queued') || aiOutput.toLowerCase().includes('в очереди')) {\n  status = 'queued';\n}\n\n// Извлекаем task_id из строки (шаблон: \"task_id: xxx\" или \"ID: xxx\")\nconst taskIdMatch = aiOutput.match(/task[_-]?id\\s*[:=]\\s*[\"']?([a-zA-Z0-9-_]+)/i) ||\n                   aiOutput.match(/ID\\s*[:=]\\s*[\"']?([a-zA-Z0-9-_]+)/i);\nif (taskIdMatch && taskIdMatch[1]) {\n  taskId = taskIdMatch[1];\n}\n\n// Формируем user-facing message\nlet finalMessage;\nswitch (status) {\n  case 'completed':\n    finalMessage = `✅ Задача \"${taskId}\" завершена успешно! Готов к следующей команде.`;\n    break;\n  case 'running':\n    finalMessage = `🔄 Задача \"${taskId}\" выполняется. Текущая позиция: x=5.2, y=8.7.`;\n    break;\n  case 'queued':\n    finalMessage = `⏳ Задача \"${taskId}\" поставлена в очередь.`;\n    break;\n  case 'failed':\n    finalMessage = `❌ Задача \"${taskId}\" завершилась с ошибкой. Повторите команду.`;\n    break;\n  default:\n    finalMessage = `ℹ️ Статус не определён. Ответ AI: \"${message.replace(/\"/g, '”').substring(0, 120)}...\"`;\n}\n\n// Возвращаем строго валидный JSON\nreturn [{\n  json: {\n    status: status,\n    message: finalMessage,\n    task_id: taskId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -96
+      ],
+      "id": "32ad846b-aa52-40cb-bbad-7d2f2e1d1752",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4dcb54be-a680-49e6-a43a-6f62df1fc303",
+              "leftValue": "=$json['status'] === 'completed'",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1888,
+        -80
+      ],
+      "id": "f39f946a-75cd-40ae-8168-989831d49a36",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e84ffedb-006f-4cae-a199-3e4f0c8c279c",
+              "name": "task_id",
+              "value": "`={{ $json['task_id']",
+              "type": "string"
+            },
+            {
+              "id": "aa4cc50c-ae2f-4b65-900b-671c093ff53c",
+              "name": "action",
+              "value": " `={{ $json['action']",
+              "type": "string"
+            },
+            {
+              "id": "546f5e02-39b9-44ad-ac9e-5c665d074497",
+              "name": "target",
+              "value": "`={{ $json['target']",
+              "type": "string"
+            },
+            {
+              "id": "821e5cc6-e9c6-43b6-abbb-7e52a85a9872",
+              "name": "response_text",
+              "value": "`={{ $json['response_text']",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        -96
+      ],
+      "id": "c9e88fd6-88aa-4aa6-8334-9e035d9ad792",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "5fc35697-3464-4d45-8bdf-de4208552ae3",
+      "name": "Wait",
+      "webhookId": "172d23c2-1273-4f79-9d40-3f92ad6ee24c"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"completed\",\n  \"message\": \"Команда выполнена\",\n  \"task_id\": \"12345\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2144,
+        -352
+      ],
+      "id": "1b0d020c-c1df-4c39-9d45-909357805ace",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "`={{ $json['action']"
+            },
+            {
+              "name": "target",
+              "value": "`={{ $json['target']"
+            },
+            {
+              "name": "params",
+              "value": " `={{ $json['params']"
+            },
+            {
+              "name": "user",
+              "value": "webhook-client"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        304,
+        -96
+      ],
+      "id": "67b697f2-e775-480a-a962-431c0824674f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        864,
+        -224
+      ],
+      "id": "493886d1-77d5-46d0-b7db-238201674e9c",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        32,
+        224
+      ],
+      "id": "f9384d84-4dc2-4f45-b0c7-874ed3d59009",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Генерируем 5 итераций как объекты (для Loop Over Items)\nreturn [\n  { iteration: 1 },\n  { iteration: 2 },\n  { iteration: 3 },\n  { iteration: 4 },\n  { iteration: 5 }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "e21079e1-888e-45e8-b830-cb27c6019e79",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nanorobots",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -688,
+        -96
+      ],
+      "id": "85efd08f-4237-434d-8dab-c2bd1c8ed826",
+      "name": "Webhook",
+      "webhookId": "ef870b33-0a03-4db8-8dbc-abeea7cb8f56"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем body из Webhook (входные данные)\nconst input = $json;\n\n// Если пришёл объект с body — извлекаем команду из body.command\nlet cmd = '';\nif (input.body && typeof input.body === 'object') {\n  cmd = input.body.command || input.body.chatInput || '';\n} else if (typeof input === 'string') {\n  // Редкий случай: raw строка\n  cmd = input;\n} else {\n  cmd = input.command || input.chatInput || '';\n}\n\ncmd = cmd.trim();\n\n// Если команда пустая или шаблонная — даем fallback\nif (!cmd || cmd === 'Выполните команду' || cmd === 'введите команду') {\n  cmd = 'сканируй зону 1';\n}\n\nreturn [{\n  json: {\n    chatInput: cmd,\n    sessionId: 'nanorobot-' + Date.now(),\n    originalCommand: cmd\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        -96
+      ],
+      "id": "ba97e634-6d8c-4ae1-b9d6-10bcd200b4bb",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "model": "=nanorobot-ai:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        224
+      ],
+      "id": "e95694eb-9788-440e-b042-e5725d62637c",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "L7O5ijotqKaVlhkN",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// AI Agent возвращает: { \"output\": \"{...}\" }\nconst rawJsonString = $json['output'];\n\nlet parsed;\ntry {\n  parsed = JSON.parse(rawJsonString);\n} catch (e) {\n  // Fallback на случай ошибки\n  parsed = {\n    action: 'error',\n    target: 'unknown',\n    task_id: 'tmp-' + Date.now(),\n    response_text: '❌ Ошибка: AI вернул некорректный JSON'\n  };\n}\n\nreturn [{\n  json: parsed\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -96
+      ],
+      "id": "5d7588e1-56f1-4fd8-9dd3-86aa2dfdb449",
+      "name": "Parse AI Output"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# [ Status AI Agent: Validation and Correction of Nanorobot Control System ]\n\n# Role:\nThe agent  receives the current state of the nanorobot control system (position, actions, statuses, errors), analyzes the reliability and completeness of the data, adds missing data or corrects logical inconsistencies if necessary, and generates a final report for the user.\n\n# Purpose:\nTo ensure reliability and transparency of control by:  \n— detecting discrepancies between expected and actual nanorobot behavior,  \n— compensating for data inaccuracies (e.g., missing `task_id`, incorrect status),  \n— generating clear, accurate, and safe responses in the browser.\n\n# Context:\nAfter executing a command, nanorobots send a callback signal with data:  \n- `status` (often `\"running\"`, `\"completed\"`, `\"failed\"`),  \n- `position`, `action`, `timestamp`,  \n- but often without `task_id`, with typos, duplicate fields, or incomplete structure.  \n\nThe AI agent must:  \n1. Validate data consistency (e.g., `status=\"completed\"` but `progress=0%` → contradiction),  \n2. Restore missing keys (`task_id`, `target`),  \n3. Upon error detection — propose corrections (not just \"error\", but *what is wrong and how it was fixed*),  \n4. Return a final response **in Russian**, ready for UI display.\n\n## Task\n1. Accept input data about nanorobot status ( JSON from API or callback).\n2. Perform validation: check for required fields and logical consistency.\n3. If needed:\n   - restore `task_id` (if missing — generate `tmp-{timestamp}`),\n   - clarify `target` from context (e.g., `area_5` → \"zone 5\"),\n   - normalize status (e.g., `status=\"done\"` → `status=\"completed\"`),\n   - add missing metadata (`source`, `updated_at`).\n4. Generate `response_text` in Russian — clear, informative, without technical jargon.\n5. Return strictly valid JSON with fields: `status`, `message`, `task_id`, `corrections`, `final_action`.\n\n## Input Data\n- `raw_status`: raw JSON from nanorobots (may contain `status`, `position`, `action`, `error`, `timestamp`, `task_id`, `progress`)\n- `previous_command`: the command issued by the user (from memory or previous step)\n- `sessionId`: session identifier for context\n\n## Response Format\nJSON with mandatory fields:\n```json\n{\n  \"status\": \"completed\" | \"running\" | \"failed\" | \"corrected\",\n  \"message\": \"user-facing message in Russian\",\n  \"task_id\": \"string\",\n  \"corrections\": [\n    { \"field\": \"status\", \"old\": \"done\", \"new\": \"completed\", \"reason\": \"normalization\" },\n    { \"field\": \"task_id\", \"old\": null, \"new\": \"tmp-1712345678901\", \"reason\": \"restored\" }\n  ],\n  \"final_action\": \"scan\",\n  \"target\": \"area_5\"\n}\n\n<requirements>\n    <requirement>Internal language: English; user output: strictly Russian</requirement>\n    <requirement>Don't invent data—if information is missing, use unknown or generate a safe fallback</requirement>\n    <requirement>Correction support: explicitly indicate what was corrected and why</requirement>\n  </requirements>\n\n<good_example>\n{\n  \"status\": \"completed\",\n  \"message\": \"✅ Задача 'сканирование зоны 5' завершена. Позиция: x=10.2, y=15.7. Ошибок нет.\",\n  \"task_id\": \"tmp-1712345678901\",\n  \"corrections\": [],\n  \"final_action\": \"scan\",\n  \"target\": \"area_5\"\n}\n      <checklist>\n    <item>All input variables accounted for (raw_status, previous_command, sessionId)</item>\n    <item>message always in Russian</item>\n    <item>No extra text outside JSON</item>\n    <item>task_id is always present</item>\n  </checklist>\n  \n  <style>\n    Precise, technically accurate, no fluff. User-facing: friendly and clear. System-facing: unambiguous and structured.\n  </style>\n  \n  <prohibited>\n    <item>Inventing non-existent nanorobot functions</item>\n    <item>Using English in response_text</item>\n    <item>Leaving empty/undefined fields without fallback</item>\n    <item>Hiding corrections — always specify what and why was changed</item>\n  </prohibited>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1376,
+        -96
+      ],
+      "id": "283e31bc-59d0-430d-af6d-86e7e56155b2",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        192
+      ],
+      "id": "583b2d7f-3a34-4296-915d-d0063e14cdab",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "model": "nanorobot-ai:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        192
+      ],
+      "id": "7f2450a7-da3d-46d2-b6fd-7d03c6e7998e",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "L7O5ijotqKaVlhkN",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Убедимся, что передаём chatInput с сырыми данными статуса\nconst iteration = $json.iteration || 1;\nconst sessionId = $json.sessionId || 'tmp-' + Date.now();\n\n// Предположим, что статус пришёл из HTTP Request1 или Code Node\nconst rawStatus = {\n  status: \"running\",\n  position: \"x=5.2,y=8.7\",\n  action: \"scan\",\n  target: \"area_5\",\n  task_id: \"tmp-12345\"\n};\n\nreturn [{\n  json: {\n    iteration,\n    sessionId,\n    chatInput: JSON.stringify(rawStatus)  // ← это ключевое!\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -96
+      ],
+      "id": "4cf7367e-8d71-46af-bff0-e7ed4deecefe",
+      "name": "Code in JavaScript3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate"
+  },
+  "versionId": "3a508ac5-85fb-444a-81ee-d05757b0b4bb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bd627d5d4d706b703ce2b679c0646f5e1f8cc010060318caa1870b1348bd42a4"
+  },
+  "id": "0hwd6v8tXGVUddvM2N0qB",
+  "tags": []
+}
